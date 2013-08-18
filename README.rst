@@ -1,4 +1,3 @@
-
 uvwsgi: a Python WSGI server
 ============================
 
@@ -10,9 +9,8 @@ also used in `Node.JS <https://github.com/joyent/node>`_ through their Python bi
 
 It's still work in progress.
 
-Example usage:
+Example usage::
 
-::
     from flask import Flask
     from uvwsgi import run
 
