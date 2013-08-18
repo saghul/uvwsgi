@@ -51,7 +51,7 @@ class HTTPRequest(object):
     def __init__(self, connection):
         self.connection = connection
         self.headers = None
-        self.body = BytesIO()
+        self.body = None
         self.method = None
         self.url = None
         self.should_keep_alive = False
@@ -68,9 +68,8 @@ class HTTPRequest(object):
             self.headers = parser.get_headers()
             self.method = parser.get_method()
             self.url = parser.get_url()
-        if parser.is_partial_body():
-            self._body.write(utf8(parser.recv_body()))
         if parser.is_message_complete():
+            self.body = BytesIO(utf8(parser.recv_body()))
             self.should_keep_alive = parser.should_keep_alive()
             self.run_wsgi()
 
