@@ -254,7 +254,7 @@ class HTTPConnection(object):
         self._handle = self.server = self.request = self.parser = None
 
     def _on_write(self, handle, error):
-        if error is not None:
+        if DEBUG and error is not None:
             logger.error('Writing response: %d %s', error, pyuv.errno.strerror(error))
         self._pending_writes -= 1
         if self._pending_writes == 0 and self._must_close:
