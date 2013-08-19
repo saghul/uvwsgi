@@ -209,11 +209,11 @@ class HTTPConnection(object):
         self._closed = False
         self._must_close = False
         self._pending_writes = 0
+        self._remote_address = self._handle.getpeername()
 
     @property
     def remote_address(self):
-        if not self._closed:
-            return self._handle.getpeername()
+        return self._remote_address
 
     def write(self, data):
         self._handle.write(data, self._on_write)
@@ -232,7 +232,7 @@ class HTTPConnection(object):
         if self._closed:
             return
         if DEBUG:
-            logger.debug('Connection from %s closed', self._handle.getpeername())
+            logger.debug('Connection from %s closed', self.remote_address)
         self._handle.close(self._on_close)
         self._closed = True
 
