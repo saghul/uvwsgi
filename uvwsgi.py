@@ -255,7 +255,7 @@ class HTTPConnection(object):
 
     def _on_write(self, handle, error):
         if error is not None:
-            logger.error('Writing response: %s', pyuv.errno.strerror(error))
+            logger.error('Writing response: %d %s', (error, pyuv.errno.strerror(error)))
         self._pending_writes -= 1
         if self._pending_writes == 0 and self._must_close:
             self.close()
@@ -284,7 +284,7 @@ class WSGIServer(object):
 
     def _on_connection(self, handle, error):
         if error is not None:
-            logger.error('Accepting incoming connection: %s', pyuv.errno.strerror(error))
+            logger.error('Accepting incoming connection: %d %s', (error, pyuv.errno.strerror(error)))
             return
         conn = pyuv.TCP(self._handle.loop)
         self._handle.accept(conn)
