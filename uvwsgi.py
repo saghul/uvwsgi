@@ -69,7 +69,7 @@ class HTTPRequest(object):
             self.method = parser.get_method()
             self.url = parser.get_url()
         if parser.is_message_complete():
-            self.body = BytesIO(utf8(parser.recv_body()))
+            self.body = BytesIO(parser.recv_body())
             self.should_keep_alive = parser.should_keep_alive()
             self.run_wsgi()
 
