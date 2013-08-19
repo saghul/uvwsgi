@@ -46,6 +46,22 @@ def utf8(value):
     return value.encode('utf-8')
 
 
+class ErrorStream(object):
+
+    def __init__(self, logger):
+        self._logger = logger
+
+    def write(self, data):
+        self._logger.error(data)
+
+    def writelines(self, seq):
+        for item in seq:
+            self.write(item)
+
+    def flush(self):
+        pass
+
+
 class HTTPRequest(object):
 
     def __init__(self, connection):
@@ -87,7 +103,7 @@ class HTTPRequest(object):
         env['wsgi.version'] = (1, 0)
         env['wsgi.url_scheme'] = 'http'
         env['wsgi.input'] = self.body
-        env['wsgi.errors'] = sys.stderr
+        env['wsgi.errors'] = ErrorStream(logger)
         env['wsgi.multithread'] = False
         env['wsgi.multiprocess'] = False
         env['wsgi.run_once'] = False
