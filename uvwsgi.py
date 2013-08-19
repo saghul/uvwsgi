@@ -4,13 +4,14 @@ import os
 import pyuv
 import signal
 import sys
-
-from http_parser.parser import HttpParser
+import time
 
 try:
     from io import BytesIO                      # python3
 except ImportError:
     from cStringIO import StringIO as BytesIO   # python2
+
+from http_parser.parser import HttpParser
 
 __all__ = ['run']
 
@@ -29,21 +30,37 @@ PY2 = sys.version_info[0] == 2
 if PY2:
     bytes_type = str
     unicode_type = unicode
+
+    exec("""def reraise(tp, value, tb=None): raise tp, value, tb""")
+
 else:
     bytes_type = bytes
     unicode_type = str
 
+    def reraise(tp, value, tb=None):
+        if value.__traceback__ is not tb:
+            raise value.with_traceback(tb)
+        raise value
 
-def utf8(value):
-    """Converts a string argument to a byte string.
 
-    If the argument is already a byte string, it is returned unchanged.
-    Otherwise it must be a unicode string and is encoded as utf8.
-    """
-    if isinstance(value, bytes_type):
-        return value
-    assert isinstance(value, unicode_type)
-    return value.encode('utf-8')
+def wsgi_to_bytes(s):
+    if isinstance(s, bytes_type):
+        return s
+    assert isinstance(s, unicode_type)
+    return s.encode('iso-8859-1')
+
+
+_WEEKDAYNAME = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+_MONTHNAME = [None,  # Dummy so we can use 1-based month numbers
+              "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+def date_time_string(timestamp=None):
+    if timestamp is None:
+        timestamp = time.time()
+    year, month, day, hh, mm, ss, wd, _y, _z = time.gmtime(timestamp)
+    return "%s, %02d %3s %4d %02d:%02d:%02d GMT" % (
+            _WEEKDAYNAME[wd], day, _MONTHNAME[month], year, hh, mm, ss)
 
 
 class ErrorStream(object):
@@ -70,7 +87,8 @@ class HTTPRequest(object):
         self.body = None
         self.method = None
         self.url = None
-        self.should_keep_alive = False
+        self.protocol_version = None
+        self.close_connection = False
 
     def process_data(self, data):
         parser = self.connection.parser
@@ -84,19 +102,56 @@ class HTTPRequest(object):
             self.headers = parser.get_headers()
             self.method = parser.get_method()
             self.url = parser.get_url()
+            self.protocol_version = 'HTTP/%s' % '.'.join(map(str, parser.get_version()))
+            self.close_connection = not parser.should_keep_alive()
         if parser.is_message_complete():
+            # Do the recv_body late, this way the HttpParser will have all the chunks
+            # in a list and we only join them once, at the end
             self.body = BytesIO(parser.recv_body())
-            self.should_keep_alive = parser.should_keep_alive()
             self.run_wsgi()
 
     def run_wsgi(self):
-        data = {}
-        response = []
+        headers_set = []
+        headers_sent = []
+
+        def write(data):
+            if not headers_set:
+                raise AssertionError("write() before start_response()")
+            elif not headers_sent:
+                # Before the first output, send the stored headers
+                buf = []
+                status, response_headers = headers_sent[:] = headers_set
+                code, _, msg = status.partition(' ')
+                buf.append(wsgi_to_bytes('%s %d %s\r\n' % (self.protocol_version, int(code), msg)))
+                header_keys = set()
+                for key, value in response_headers:
+                    buf.append(wsgi_to_bytes('%s: %s\r\n' % (key, value)))
+                    header_keys.add(key.lower())
+                if 'content-length' not in header_keys:
+                    self.close_connection = True
+                if 'server' not in header_keys:
+                    buf.append(b'Server: uvwsgi/%s\r\n' % __version__)
+                if 'date' not in header_keys:
+                    buf.append(b'Date: %s\r\n' % date_time_string())
+                buf.append(b'\r\n')
+                self.connection.write(b''.join(buf))
+
+            assert type(data) is bytes, 'applications must write bytes'
+            self.connection.write(data)
 
         def start_response(status, response_headers, exc_info=None):
-            data['status'] = status
-            data['headers'] = response_headers
-            return response.append
+            if exc_info:
+                try:
+                    if headers_sent:
+                        reraise(*exc_info)
+                finally:
+                    exc_info = None
+            elif headers_set:
+                raise AssertionError("Headers already set!")
+
+            headers_set[:] = [status, response_headers]
+            # TODO: check hop by hop headers here?
+            return write
 
         # Prepare WSGI environment
         env = self.connection.parser.get_wsgi_environ()
@@ -112,39 +167,23 @@ class HTTPRequest(object):
         app = self.connection.server.app
         app_response = app(env, start_response)
         try:
-            response.extend(app_response)
-            body = b''.join(response)
+            for data in app_response:
+                write(data)
+            if not headers_sent:
+                write(b'')
+        except Exception:
+            logger.exception('Running WSGI application')
         finally:
             if hasattr(app_response, 'close'):
                 app_response.close()
-        if not data:
-            raise RuntimeError('WSGI application did not call start_response')
-
-        status_code = int(data['status'].split()[0])
-        headers = data['headers']
-        header_set = set(k.lower() for (k, v) in headers)
-        body = utf8(body)
-        if status_code != 304:
-            if 'content-length' not in header_set:
-                headers.append(('Content-Length', str(len(body))))
-            if 'content-type' not in header_set:
-                headers.append(('Content-Type', 'text/html; charset=UTF-8'))
-        if 'server' not in header_set:
-            headers.append(('Server', 'uvwsgi/%s' % __version__))
-
-        parts = [utf8('HTTP/1.1 ' + data['status'] + '\r\n')]
-        for key, value in headers:
-            parts.append(utf8(key) + b': ' + utf8(value) + b'\r\n')
-        parts.append(b'\r\n')
-        parts.append(body)
-        self.connection.write(b''.join(parts))
         self.end()
         if DEBUG:
-            self._log(status_code)
+            status = headers_set[0]
+            self._log(int(status.split()[0]))
 
     def end(self):
-        if not self.should_keep_alive:
-            self_connection.finish()
+        if self.close_connection:
+            self.connection.finish()
         else:
             self.connection.request = None
 
