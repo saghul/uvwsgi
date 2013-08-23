@@ -22,3 +22,10 @@ Example usage::
 
     run(app, ('0.0.0.0', 8088))
 
+The ``uvwsgi-run`` command line application can also be used to serve WSGI applications
+directly. Assuming the code above this lines is stored in a file called `tst.py`, it can be
+served as follows::
+
+    uvwsgi-run --app tst:app --port 8888
+
+
