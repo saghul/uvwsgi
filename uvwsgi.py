@@ -323,3 +323,29 @@ def run(application, address):
     # Free all resources
     _close_loop(loop)
 
+
+def main():
+    from optparse import OptionParser
+
+    def import_app(s):
+        sys.path.insert(0, os.path.abspath(os.curdir))
+        mod, attr = s.rsplit(':', 1)
+        module = __import__(mod)
+        return getattr(module, attr)
+
+    parser = OptionParser()
+    parser.add_option('-a', '--app', help='WSGI application which should be served')
+    parser.add_option('-i', '--interface', default='0.0.0.0', help='Interface to listen on for incoming requests')
+    parser.add_option('-p', '--port', default='8088', help='Port to listen on for incoming requests')
+    options, args = parser.parse_args()
+
+    app = import_app(options.app)
+    interface = options.interface
+    port = int(options.port)
+
+    run(app, (interface, port))
+
+
+if __name__ == '__main__':
+    main()
+
