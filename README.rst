@@ -7,7 +7,31 @@ also used in `Node.JS <https://github.com/joyent/node>`_ through their Python bi
 * `pyuv <https://github.com/saghul/pyuv>`_
 * `http-parser <https://github.com/benoitc/http-parser>`_
 
-It's still work in progress.
+
+Motivalion
+----------
+
+There are  abunch of great WSGI servers out there, so why create a new one? I've been
+playing with Flask and WSGI lately and I wanted to see the guts of it. As you can see
+the code is pretty short, I expect to make more changes and more features to it though.
+
+
+Status
+------
+
+**uvwsgi should not be used in production.** It's still work in progress.
+
+
+Installtion
+-----------
+
+uvwsgi can be easily installed with pip::
+
+    pip install uvwsgi
+
+
+Usage
+-----
 
 Example usage::
 
