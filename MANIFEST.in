@@ -1,0 +1,3 @@
+include README.rst LICENSE TODO
+include setup.py
+
