@@ -26,7 +26,7 @@ The ``uvwsgi`` command line application can also be used to serve WSGI applicati
 directly. Assuming the code above this lines is stored in a file called `tst.py`, it can be
 served as follows::
 
-    uvwsgi --app tst:app --port 8888
+    uvwsgi tst:app --port 8888
 
 NOTE: You need to install the package first in order to have the ``uvwsgi`` command available.
 
