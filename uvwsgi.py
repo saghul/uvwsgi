@@ -334,12 +334,14 @@ def main():
         return getattr(module, attr)
 
     parser = OptionParser()
-    parser.add_option('-a', '--app', help='WSGI application which should be served')
     parser.add_option('-i', '--interface', default='0.0.0.0', help='Interface to listen on for incoming requests')
     parser.add_option('-p', '--port', default='8088', help='Port to listen on for incoming requests')
     options, args = parser.parse_args()
 
-    app = import_app(options.app)
+    if len(args) != 1:
+        raise RuntimeError('invalid arguments')
+
+    app = import_app(args[0])
     interface = options.interface
     port = int(options.port)
 
