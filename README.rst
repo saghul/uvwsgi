@@ -54,3 +54,15 @@ served as follows::
 
 NOTE: You need to install the package first in order to have the ``uvwsgi`` command available.
 
+
+Author
+------
+
+Saúl Ibarra Corretgé <saghul@gmail.com>
+
+
+License
+-------
+
+Unless stated otherwise on-file uvwsgi uses the MIT license, check LICENSE file.
+
