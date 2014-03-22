@@ -44,7 +44,8 @@ Example usage::
     def index():
         return 'hello world!'
 
-    run(app, ('0.0.0.0', 8088))
+    if __name__ == '__main__':
+        run(app, ('0.0.0.0', 8088))
 
 The ``uvwsgi`` command line application can also be used to serve WSGI applications
 directly. Assuming the code above this lines is stored in a file called `tst.py`, it can be
