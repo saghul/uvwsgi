@@ -263,11 +263,14 @@ class HTTPConnection(object):
 
 class WSGIServer(object):
 
-    def __init__(self, loop, application, address):
+    def __init__(self, loop, application, address, fd):
         self.app = application
         self.connections = set()
         self._handle = pyuv.TCP(loop)
-        self._handle.bind(address)
+        if fd is None:
+            self._handle.bind(address)
+        else:
+            self._handle.open(os.dup(fd))
         self._stopped = False
         logger.info('%s listening on %s', self.__class__.__name__, self._handle.getsockname())
 
@@ -301,12 +304,12 @@ def _close_loop(loop):
     loop.walk(cb)
 
 
-def run(application, address):
+def run(application, address=None, fd=None):
     # The one and only event loop
     loop = pyuv.Loop.default_loop()
 
     # The one and only WSGI server
-    server = WSGIServer(loop, application, address)
+    server = WSGIServer(loop, application, address, fd)
 
     # Signal handlers for quitting
     sigint_h = pyuv.Signal(loop)
@@ -336,18 +339,24 @@ def main():
     parser = OptionParser()
     parser.add_option('-i', '--interface', default='0.0.0.0', help='Interface to listen on for incoming requests')
     parser.add_option('-p', '--port', default='8088', help='Port to listen on for incoming requests')
+    parser.add_option('-f', '--fd', default=None, help='File descriptor to listen on for requests')
     options, args = parser.parse_args()
 
     if len(args) != 1:
         raise RuntimeError('invalid arguments')
 
     app = import_app(args[0])
-    interface = options.interface
-    port = int(options.port)
+    if options.fd is None:
+        interface = options.interface
+        port = int(options.port)
+        address = (interface, port)
+        fd = None
+    else:
+        address = None
+        fd = int(options.fd)
 
-    run(app, (interface, port))
+    run(app, address=address, fd=fd)
 
 
 if __name__ == '__main__':
     main()
-
