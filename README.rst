@@ -21,6 +21,9 @@ Status
 
 **uvwsgi should not be used in production.** It's still work in progress.
 
+The project is not very actively maintained at the moment, if you'd like to help please
+drop me a line!
+
 
 Installtion
 -----------
