@@ -5,6 +5,7 @@ import pyuv
 import signal
 import sys
 import time
+import traceback
 
 try:
     from io import BytesIO                      # python3
@@ -165,7 +166,19 @@ class HTTPRequest(object):
 
         # Run WSGI application
         app = self.connection.server.app
-        app_response = app(env, start_response)
+        try:
+            app_response = app(env, start_response)
+        except Exception:
+            logger.exception('Running WSGI application')
+            if DEBUG:
+                response_body = traceback.format_exc()
+                response_headers = [('Content-Type', 'text/plain'),
+                                    ('Content-Length', str(len(response_body)))]
+                start_response('500 Internal Server Error', response_headers, exc_info=sys.exc_info())
+                app_response = [response_body]
+            else:
+                self.connection.finish()
+                return
         try:
             for data in app_response:
                 write(data)
