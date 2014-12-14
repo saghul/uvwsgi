@@ -266,6 +266,7 @@ class WSGIServer(object):
     def __init__(self, loop, application, address, fd):
         self.app = application
         self.connections = set()
+        self._loop = loop
         self._handle = pyuv.TCP(loop)
         if fd is None:
             self._handle.bind(address)
@@ -283,6 +284,7 @@ class WSGIServer(object):
         self._handle.close()
         for c in self.connections:
             c.close()
+        self._loop.stop()
         self._stopped = True
 
     def _on_connection(self, handle, error):
@@ -297,13 +299,6 @@ class WSGIServer(object):
             logger.debug('Incoming connection from %s', conn.getpeername())
 
 
-def _close_loop(loop):
-    def cb(handle):
-        if not handle.closed:
-            handle.close()
-    loop.walk(cb)
-
-
 def run(application, address=None, fd=None):
     # The one and only event loop
     loop = pyuv.Loop.default_loop()
@@ -314,17 +309,17 @@ def run(application, address=None, fd=None):
     # Signal handlers for quitting
     sigint_h = pyuv.Signal(loop)
     sigint_h.start(lambda *x: server.stop(), signal.SIGINT)
-    sigint_h.unref()
     sigterm_h = pyuv.Signal(loop)
     sigterm_h.start(lambda *x: server.stop(), signal.SIGTERM)
-    sigterm_h.unref()
 
     # Here we go!
     server.start()
     loop.run()
 
     # Free all resources
-    _close_loop(loop)
+    for handle in loop.handles:
+        if not handle.closed:
+            handle.close()
 
 
 def main():
