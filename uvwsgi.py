@@ -131,9 +131,9 @@ class HTTPRequest(object):
                 if 'content-length' not in header_keys:
                     self.close_connection = True
                 if 'server' not in header_keys:
-                    buf.append(b'Server: uvwsgi/%s\r\n' % __version__)
+                    buf.append(wsgi_to_bytes('Server: uvwsgi/%s\r\n' % __version__))
                 if 'date' not in header_keys:
-                    buf.append(b'Date: %s\r\n' % date_time_string())
+                    buf.append(wsgi_to_bytes('Date: %s\r\n' % date_time_string()))
                 buf.append(b'\r\n')
                 self.connection.write(b''.join(buf))
 
