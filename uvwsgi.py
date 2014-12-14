@@ -16,7 +16,7 @@ from http_parser.parser import HttpParser
 __all__ = ['run']
 
 
-__version__ = '0.2.0'
+__version__ = '0.3.0'
 
 logger = logging.getLogger('uvwsgi')
 logger.setLevel(logging.DEBUG)
