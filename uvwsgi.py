@@ -259,6 +259,7 @@ class HTTPConnection(object):
             self.close()
             return
         if self.request is None:
+            self.parser.__init__(kind=0)
             self.request = HTTPRequest(self)
         self.request.process_data(data)
 
